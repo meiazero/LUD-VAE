@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 from torch.nn.parallel import DataParallel  # , DistributedDataParallel
-import functools
 from collections import OrderedDict
 from torch.optim import Adam
 from torch.optim import lr_scheduler
@@ -14,13 +13,13 @@ class LUDVI():
     def __init__(self, opt):
         self.opt = opt                         # opt
         self.save_dir = opt['path']['models']  # save models
-        self.device = torch.device('cuda' if opt['gpu_ids'] is not None else 'cpu')
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.is_train = opt['is_train']        # training or not
         self.schedulers = []                   # schedulers
-        
+
         self.model = define_net().to(self.device)
         self.model = DataParallel(self.model)
-        
+
     """
     # ----------------------------------------
     # Preparation before training with data
@@ -34,7 +33,7 @@ class LUDVI():
         self.model.train()
         self.define_optimizer()               # define optimizer
         self.define_scheduler()               # define scheduler
-        self.log_dict = OrderedDict()         # log 
+        self.log_dict = OrderedDict()         # log
 
 
     def load(self):
@@ -68,22 +67,22 @@ class LUDVI():
     def optimize_parameters(self, current_step):
         self.optimizer.zero_grad()
         mseloss = nn.MSELoss().to(self.device)
-        
+
         rec_loss, kl_loss = self.model(self.img, self.img_c, self.label)
-        
+
         if self.opt_train['KL_anneal'] == 'linear':
             kl_weight = min(current_step/self.opt_train['KL_anneal_maxiter'], self.opt_train['KL_weight'])
         else:
             kl_weight = self.opt_train['KL_weight']
-        
+
         loss1 = rec_loss.mean()
         loss2 = kl_weight * kl_loss.mean()
-        
+
         loss = loss1 + loss2
         loss.backward()
-        
+
         self.optimizer.step()
-        
+
         self.log_dict['loss'] = loss.item()
         self.log_dict['reconstruction_loss'] = loss1.item()
         self.log_dict['kl_loss'] = loss2.item()
@@ -91,37 +90,37 @@ class LUDVI():
 
     def test(self):
         self.model.eval()
-        
+
         if isinstance(self.model, nn.DataParallel):
             model = self.model.module
         else:
             model = self.model
-        
+
         if 'normalize' in self.opt['datasets']['train']:
             normalize = True
-        
+
             mean_noisy = np.asarray(self.opt['datasets']['train']['normalize']['mean_noisy'])/255
             std_noisy = np.asarray(self.opt['datasets']['train']['normalize']['std_noisy'])/255
             mean_clean = np.asarray(self.opt['datasets']['train']['normalize']['mean_clean'])/255
             std_clean = np.asarray(self.opt['datasets']['train']['normalize']['std_clean'])/255
-            
-            mean_noisy = torch.tensor(mean_noisy).reshape(1,3,1,1).to(self.device) 
-            std_noisy = torch.tensor(std_noisy).reshape(1,3,1,1).to(self.device) 
-            mean_clean = torch.tensor(mean_clean).reshape(1,3,1,1).to(self.device) 
-            std_clean = torch.tensor(std_clean).reshape(1,3,1,1).to(self.device) 
-            
+
+            mean_noisy = torch.tensor(mean_noisy).reshape(1,3,1,1).to(self.device)
+            std_noisy = torch.tensor(std_noisy).reshape(1,3,1,1).to(self.device)
+            mean_clean = torch.tensor(mean_clean).reshape(1,3,1,1).to(self.device)
+            std_clean = torch.tensor(std_clean).reshape(1,3,1,1).to(self.device)
+
             denormalize = lambda x: (((x - mean_clean)/std_clean)*std_noisy) + mean_noisy
-            
+
         else:
             normalize = False
-        
+
         with torch.no_grad():
             if normalize and self.label.item() == 1:
                 self.img_t = model.translate(self.img, self.img_c, self.label)
             elif normalize and self.label.item() == 0:
                 self.img_t = model.translate(self.img, self.img_c, self.label)
                 self.img_t = denormalize(self.img_t)
-            else: 
+            else:
                 self.img_t = model.translate(self.img, self.img_c, self.label)
 
         self.model.train()
@@ -190,16 +189,16 @@ class LUDVI():
     # ----------------------------------------
     # network name and number of parameters
     # ----------------------------------------
-    
+
     def describe_network(self, model):
         if isinstance(model, nn.DataParallel):
             model = model.module
-            
+
         msg = '\n'
         msg += 'Networks name: {}'.format(model.__class__.__name__) + '\n'
         msg += 'Params number: {}'.format(sum(map(lambda x: x.numel(), model.parameters()))) + '\n'
         msg += 'Net structure:\n{}'.format(str(model)) + '\n'
-        
+
         return msg
 
     # ----------------------------------------
@@ -208,14 +207,14 @@ class LUDVI():
     def describe_params(self, model):
         if isinstance(model, nn.DataParallel):
             model = model.module
-            
+
         msg = '\n'
         msg += ' | {:^6s} | {:^6s} | {:^6s} | {:^6s} || {:<20s}'.format('mean', 'min', 'max', 'std', 'shape', 'param_name') + '\n'
         for name, param in model.state_dict().items():
             if not 'num_batches_tracked' in name:
                 v = param.data.clone().float()
                 msg += ' | {:>6.3f} | {:>6.3f} | {:>6.3f} | {:>6.3f} | {} || {:s}'.format(v.mean(), v.min(), v.max(), v.std(), v.shape, name) + '\n'
-        
+
         return msg
 
     """
@@ -232,12 +231,12 @@ class LUDVI():
         save_path = os.path.join(save_dir, save_filename)
         if isinstance(model, nn.DataParallel):
             model = model.module
-            
+
         model_state_dict = model.state_dict()
-        
+
         for key, param in model_state_dict.items():
             model_state_dict[key] = param.cpu()
-        
+
         states = model_state_dict
         torch.save(states, save_path)
 
@@ -248,7 +247,7 @@ class LUDVI():
     def load_network(self, load_path, model, strict=True):
         if isinstance(model, nn.DataParallel):
             model = model.module
-            
+
         states = torch.load(load_path)
         model.load_state_dict(states, strict=strict)
 
@@ -257,5 +256,3 @@ def define_net():
     from models.network_ludvae import LUDVAE
     net = LUDVAE()
     return net
-    
-
