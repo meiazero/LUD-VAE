@@ -4,7 +4,6 @@ import argparse
 import time
 import random
 import numpy as np
-from collections import OrderedDict
 import logging
 from torch.utils.data import DataLoader
 import torch
@@ -16,7 +15,7 @@ from utils import utils_option as option
 from data.dataset import UPMDataset
 from models.model_ludvae import LUDVI
 
-def main(json_path='./options/train_sidd.json'):
+def main(json_path='./options/train_sidd.jsonc'):
 
     '''
     # ----------------------------------------
@@ -83,7 +82,7 @@ def main(json_path='./options/train_sidd.json'):
     for phase, dataset_opt in opt['datasets'].items():
         if phase == 'train':
             train_set = UPMDataset(dataset_opt)
-        
+
             labels = np.asarray(train_set.labels)
             unique, counts = np.unique(labels, return_counts=True)
             logger.info('balancing classes', dict(zip(unique,counts)))
@@ -92,14 +91,14 @@ def main(json_path='./options/train_sidd.json'):
                 weights[labels==class_id] = len(weights)/count
                 print('class:', class_id, 'count:', count, 'total:', len(weights), 'weight:', len(weights)/count, 'real', weights[labels==class_id].mean())
             train_sampler = torch.utils.data.WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
-            
+
             train_size = int(math.ceil(len(train_set) / dataset_opt['dataloader_batch_size']))
             print('Number of train images: {:,d}, iters: {:,d}'.format(len(train_set), train_size))
             train_loader = DataLoader(train_set,
                                       batch_size=dataset_opt['dataloader_batch_size'],
                                       shuffle=dataset_opt['dataloader_shuffle'],
                                       num_workers=dataset_opt['dataloader_num_workers'],
-                                      sampler=train_sampler, 
+                                      sampler=train_sampler,
                                       drop_last=True,
                                       pin_memory=True)
         elif phase == 'test':
@@ -180,22 +179,22 @@ def main(json_path='./options/train_sidd.json'):
                     util.mkdir(img_dir)
 
                     model.feed_data(test_data)
-                    
+
                     model.test()
 
                     visuals = model.current_visuals()
                     img = util.tensor2uint(visuals['img'])
                     img_t = util.tensor2uint(visuals['img_t'])
                     label = int(visuals['label'])
- 
+
                     # -----------------------
-                    # save 
+                    # save
                     # -----------------------
                     save_img_path = os.path.join(img_dir, '{:s}_{}.png'.format(img_name, label))
                     save_img_t_path = os.path.join(img_dir, '{:s}_{}_to_{}_{:d}.png'.format(img_name, label, 1-label, current_step))
-                                        
+
                     util.imsave(img_t, save_img_t_path)
-                    
+
                     if current_step == opt['train']['checkpoint_test']:
                         util.imsave(img, save_img_path)
 
