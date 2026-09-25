@@ -69,3 +69,8 @@ Change the `"dataroot"` in `*/options/train_*.json`, run:
 cd ./LUD_VAE_aim19/
 uv run python main_train.py
 ```
+
+## Checks before push
+
+Run `git config core.hooksPath .githooks` once per clone. `.githooks/pre-push` then
+refuses a push that fails `uvx ruff format --check .` or `uvx ruff check .`.
