@@ -1,6 +1,15 @@
 # LUD-VAE
 Official code for our paper "Learn from Unpaired Data for Image Restoration: A Variational Bayes Approach". https://ieeexplore.ieee.org/document/9924527/
 
+## Setup
+
+One uv environment for every `LUD_VAE_*` directory (Python 3.12, torch from the cu126 index):
+
+```
+uv sync
+cd ./LUD_VAE_sidd/ && uv run python main_train.py
+```
+
 ## Dataset Preparation
 For AIM19 and NTIRE20, the dataset preparation is the same with the DeFlow method. See https://github.com/volflow/DeFlow.
 
@@ -20,14 +29,14 @@ We provide the pre-trained LUD-VAE model in `*/trained_models/LUDVAE_models/ludv
 
 ```
 cd ./LUD_VAE_aim19/
-python main_test.py
+uv run python main_test.py
 ```
 
 ## Generate Synthetic Datasets
 
 To generate synthetic datasets, change the `H_path` in `*/main_translate.py`, and run:
 ```
-python main_translate.py
+uv run python main_translate.py
 ```
 
 ## Downstream Models
@@ -58,5 +67,5 @@ Change the `"dataroot"` in `*/options/train_*.json`, run:
 
 ```
 cd ./LUD_VAE_aim19/
-python main_train.py
+uv run python main_train.py
 ```

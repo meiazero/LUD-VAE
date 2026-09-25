@@ -1,0 +1,46 @@
+[project]
+name = "lud-vae"
+version = "0.1.0"
+description = "LUD-VAE fork"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "h5py>=3.12",
+  "hdf5storage>=0.1.19",
+  "matplotlib>=3.9",
+  "numpy>=2.1",
+  "opencv-python-headless>=4.10",
+  "pandas>=2.2",
+  "pillow>=11",
+  "scikit-image>=0.24",
+  "scipy>=1.14",
+  "torch>=2.6",
+  "torchvision>=0.21",
+  "tqdm>=4.66",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+# Upstream LUD-VAE code keeps its own style.
+extend-exclude = ["LUD_VAE_aim19", "LUD_VAE_dnd", "LUD_VAE_lol", "LUD_VAE_ntire20", "LUD_VAE_sidd"]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM", "C4", "PTH", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+# cu126 wheels: the PyPI torch wheel targets CUDA 13, which needs a newer NVIDIA driver.
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+torchvision = { index = "pytorch-cu126" }
